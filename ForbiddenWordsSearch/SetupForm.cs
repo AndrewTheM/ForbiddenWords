@@ -35,6 +35,8 @@ namespace ForbiddenWordsSearch
                 this.Hide();
                 searchForm.Show();
             }
+            else
+                MessageBox.Show("This directory does not exist");
         }
     }
 }
