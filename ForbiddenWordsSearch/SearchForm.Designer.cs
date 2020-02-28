@@ -28,6 +28,7 @@
         /// </summary>
         private void InitializeComponent()
         {
+            System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(SearchForm));
             this.PrgBar = new System.Windows.Forms.ProgressBar();
             this.BtnPause = new System.Windows.Forms.Button();
             this.BtnStop = new System.Windows.Forms.Button();
@@ -80,10 +81,11 @@
             this.Controls.Add(this.BtnStop);
             this.Controls.Add(this.BtnPause);
             this.Controls.Add(this.PrgBar);
+            this.Icon = ((System.Drawing.Icon)(resources.GetObject("$this.Icon")));
             this.MaximizeBox = false;
             this.Name = "SearchForm";
-            this.ShowIcon = false;
             this.StartPosition = System.Windows.Forms.FormStartPosition.CenterScreen;
+            this.Text = "Forbidden Words";
             this.FormClosed += new System.Windows.Forms.FormClosedEventHandler(this.SearchForm_FormClosed);
             this.ResumeLayout(false);
             this.PerformLayout();

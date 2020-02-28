@@ -28,6 +28,7 @@
         /// </summary>
         private void InitializeComponent()
         {
+            System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(SetupForm));
             this.BtnOpen = new System.Windows.Forms.Button();
             this.TxtFolder = new System.Windows.Forms.TextBox();
             this.DlgFolder = new System.Windows.Forms.FolderBrowserDialog();
@@ -70,9 +71,9 @@
             this.Controls.Add(this.BtnStart);
             this.Controls.Add(this.TxtFolder);
             this.Controls.Add(this.BtnOpen);
+            this.Icon = ((System.Drawing.Icon)(resources.GetObject("$this.Icon")));
             this.MaximizeBox = false;
             this.Name = "SetupForm";
-            this.ShowIcon = false;
             this.StartPosition = System.Windows.Forms.FormStartPosition.CenterScreen;
             this.Text = "Choose Folder";
             this.FormClosed += new System.Windows.Forms.FormClosedEventHandler(this.SetupForm_FormClosed);

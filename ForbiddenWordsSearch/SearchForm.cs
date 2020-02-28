@@ -58,20 +58,20 @@ namespace ForbiddenWordsSearch
                 LblState.Text = value;
         }
 
-        private IEnumerable<string> GetDirectoryFiles(string path, ICollection<string> filesCollector = null)
+        private IEnumerable<string> GetDirectoryFiles(string path, string pattern, ICollection<string> filesCollector = null)
         {
             try
             {
                 filesCollector ??= new LinkedList<string>();
 
                 resetEvent.WaitOne();
-                foreach (var file in Directory.GetFiles(path, "*.txt"))
+                foreach (var file in Directory.GetFiles(path, pattern))
                     filesCollector.Add(file);
 
                 foreach (var subdir in Directory.EnumerateDirectories(path))
                 {
                     resetEvent.WaitOne();
-                    GetDirectoryFiles(subdir, filesCollector);
+                    GetDirectoryFiles(subdir, pattern, filesCollector);
                 }
 
                 return filesCollector;
@@ -109,7 +109,7 @@ namespace ForbiddenWordsSearch
                 {
                     ChangeState($"{states["Init"]} (Drive {drive.Name})");
 
-                    var filesOnDrive = GetDirectoryFiles(drive.Name).ToList();
+                    var filesOnDrive = GetDirectoryFiles(drive.Name, "*.txt").ToList();
                     filePaths.AddRange(filesOnDrive);
                 }
                 catch (Exception) { }

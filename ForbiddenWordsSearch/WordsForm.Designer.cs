@@ -28,6 +28,7 @@
         /// </summary>
         private void InitializeComponent()
         {
+            System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(WordsForm));
             this.LstWords = new System.Windows.Forms.ListView();
             this.TxtWord = new System.Windows.Forms.TextBox();
             this.BtnAdd = new System.Windows.Forms.Button();
@@ -122,10 +123,11 @@
             this.Controls.Add(this.BtnAdd);
             this.Controls.Add(this.TxtWord);
             this.Controls.Add(this.LstWords);
+            this.Icon = ((System.Drawing.Icon)(resources.GetObject("$this.Icon")));
             this.MaximizeBox = false;
             this.Name = "WordsForm";
-            this.ShowIcon = false;
             this.StartPosition = System.Windows.Forms.FormStartPosition.CenterScreen;
+            this.Text = "Forbidden Words";
             this.ResumeLayout(false);
             this.PerformLayout();
 
