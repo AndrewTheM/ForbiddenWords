@@ -15,14 +15,16 @@ namespace ForbiddenWordsSearch
             InitializeComponent();
             LstWords.View = View.Details;
             LstWords.Scrollable = true;
+            LstWords.MultiSelect = false;
+            LstWords.FullRowSelect = true;
             LstWords.Columns.Add(new ColumnHeader());
             LstWords.HeaderStyle = ColumnHeaderStyle.None;
             LstWords.AutoResizeColumns(ColumnHeaderAutoResizeStyle.HeaderSize);
-            LstWords.MultiSelect = false;
-            LstWords.FullRowSelect = true;
         }
 
-        private void BtnAdd_Click(object sender, EventArgs e)
+        private void BtnAdd_Click(object sender, EventArgs e) => AddWordToListView();
+
+        private void AddWordToListView()
         {
             var words = GetWordsFromListView();
             if (!string.IsNullOrWhiteSpace(TxtWord.Text) && !words.Contains(TxtWord.Text))
@@ -58,9 +60,9 @@ namespace ForbiddenWordsSearch
                 });
         }
 
-        private delegate List<string> GetWordsFromListViewCallback();
+        private delegate ICollection<string> GetWordsFromListViewCallback();
 
-        private List<string> GetWordsFromListView()
+        private ICollection<string> GetWordsFromListView()
         {
             if (LstWords.InvokeRequired)
                 return Invoke(new GetWordsFromListViewCallback(GetWordsFromListView)) as List<string>;
@@ -98,6 +100,12 @@ namespace ForbiddenWordsSearch
             }
             else
                 MessageBox.Show("Add at least one word to the list.");
+        }
+
+        private void TxtWord_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.KeyCode == Keys.Enter)
+                AddWordToListView();
         }
     }
 }

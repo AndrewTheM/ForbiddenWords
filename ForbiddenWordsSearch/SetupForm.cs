@@ -8,9 +8,9 @@ namespace ForbiddenWordsSearch
     public partial class SetupForm : Form
     {
         private readonly Form parent;
-        private readonly List<string> words;
+        private readonly ICollection<string> words;
 
-        public SetupForm(Form parent, List<string> words)
+        public SetupForm(Form parent, ICollection<string> words)
         {
             InitializeComponent();
             this.parent = parent;

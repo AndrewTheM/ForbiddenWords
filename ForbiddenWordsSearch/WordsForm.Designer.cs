@@ -53,6 +53,7 @@
             this.TxtWord.Name = "TxtWord";
             this.TxtWord.Size = new System.Drawing.Size(117, 20);
             this.TxtWord.TabIndex = 1;
+            this.TxtWord.KeyDown += new System.Windows.Forms.KeyEventHandler(this.TxtWord_KeyDown);
             // 
             // BtnAdd
             // 

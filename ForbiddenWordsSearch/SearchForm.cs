@@ -11,16 +11,6 @@ namespace ForbiddenWordsSearch
 {
     public partial class SearchForm : Form
     {
-        private readonly Form parent;
-
-        private readonly List<ForbiddenWord> words;
-
-        private readonly string path;
-
-        private readonly Thread thread;
-
-        private bool paused;
-
         private readonly Dictionary<string, string> states =
             new Dictionary<string, string>()
             {
@@ -31,13 +21,29 @@ namespace ForbiddenWordsSearch
                 ["Report"] = "Generating the report..."
             };
 
-        public SearchForm(Form parent, List<string> words, string path)
+        private readonly Form parent;
+
+        private readonly string path;
+
+        private readonly Thread thread;
+
+        private readonly List<ForbiddenWord> words;
+
+        private readonly ManualResetEvent resetEvent;
+
+        private bool isThreadPaused;
+
+        public SearchForm(Form parent, ICollection<string> words, string path)
         {
             InitializeComponent();
+            PrgBar.Style = ProgressBarStyle.Marquee;
+            PrgBar.MarqueeAnimationSpeed = 2;
+
             this.parent = parent;
             this.words = words.Select(w => new ForbiddenWord { Word = w }).ToList();
             this.path = path;
 
+            resetEvent = new ManualResetEvent(true);
             thread = new Thread(new ThreadStart(PerformSearch)) { IsBackground = true };
             thread.Start();
         }
@@ -52,86 +58,97 @@ namespace ForbiddenWordsSearch
                 LblState.Text = value;
         }
 
-        private IEnumerable<string> GetDirectoryFiles(string path)
+        private IEnumerable<string> GetDirectoryFiles(string path, ICollection<string> filesCollector = null)
         {
-            Queue<string> queue = new Queue<string>();
-            queue.Enqueue(path);
-            while (queue.Count > 0)
+            try
             {
-                path = queue.Dequeue();
-                try
+                filesCollector ??= new LinkedList<string>();
+
+                resetEvent.WaitOne();
+                foreach (var file in Directory.GetFiles(path, "*.txt"))
+                    filesCollector.Add(file);
+
+                foreach (var subdir in Directory.EnumerateDirectories(path))
                 {
-                    foreach (string subDir in Directory.GetDirectories(path))
-                    {
-                        queue.Enqueue(subDir);
-                    }
+                    resetEvent.WaitOne();
+                    GetDirectoryFiles(subdir, filesCollector);
                 }
-                catch (Exception ex)
-                {
-                    MessageBox.Show(ex.Message);
-                }
-                string[] files = null;
-                try
-                {
-                    files = Directory.GetFiles(path, "*.txt");
-                }
-                catch (Exception ex)
-                {
-                    MessageBox.Show(ex.Message);
-                }
-                if (files != null)
-                {
-                    for (int i = 0; i < files.Length; i++)
-                    {
-                        yield return files[i];
-                    }
-                }
+
+                return filesCollector;
+            }
+            catch (Exception)
+            {
+                return Enumerable.Empty<string>();
             }
         }
 
         private void PerformSearch()
         {
-            var files = new List<string>();
-            var paths = new List<string>();
-            var filesInfo = new List<CensoredFileInfo>();
+            string copiesPath = $"{path}/Forbidden Words/Copies",
+                    censorPath = $"{path}/Forbidden Words/Censored";
+            Directory.CreateDirectory(copiesPath);
+            Directory.CreateDirectory(censorPath);
 
-            var drives = DriveInfo.GetDrives();
-            foreach (var drive in drives)
+            var filePaths = ScanDrivesForTextFiles();
+            var filesToCensor = SearchForForbiddenWords(filePaths);
+            var filesInfo = CopyFilesToFolder(filesToCensor, copiesPath);
+            CensorFiles(filesInfo, censorPath);
+            GenerateReport(filesInfo, filePaths.Count);
+
+            MessageBox.Show("The search is completed.\nThe report has been generated in the working folder.");
+
+            Invoke(new Action(() => this.Close()));
+        }
+
+        private ICollection<string> ScanDrivesForTextFiles()
+        {
+            var filePaths = new List<string>();
+            foreach (var drive in DriveInfo.GetDrives())
             {
                 try
                 {
                     ChangeState($"{states["Init"]} (Drive {drive.Name})");
 
                     var filesOnDrive = GetDirectoryFiles(drive.Name).ToList();
-                    files.AddRange(filesOnDrive);
+                    filePaths.AddRange(filesOnDrive);
                 }
-                catch (Exception ex)
-                {
-                    //MessageBox.Show(ex.Message, "Error");
-                }
+                catch (Exception) { }
             }
+            return filePaths;
+        }
 
-            int processed = 0, fileCount = files.Count();
+        private ICollection<string> SearchForForbiddenWords(ICollection<string> filePaths)
+        {
+            int processedCount = 0, fileCount = filePaths.Count();
+            var filesToCensor = new List<string>();
 
-            Invoke(new Action(() => PrgBar.Maximum = fileCount));
+            Invoke(new Action(() =>
+            {
+                PrgBar.Style = ProgressBarStyle.Continuous;
+                PrgBar.Maximum = fileCount;
+            }));
 
-            foreach (var file in files)
+            foreach (var file in filePaths)
             {
                 try
                 {
-                    ChangeState($"{states["Search"]} ({processed}/{fileCount})");
+                    ChangeState($"{states["Search"]} ({processedCount}/{fileCount})");
+                    resetEvent.WaitOne();
 
                     using var sr = new StreamReader(file, Encoding.Default);
-                    var content = sr.ReadToEnd();
+                    var fileContent = sr.ReadToEnd();
 
-                    foreach (var fw in words)
-                        if (content.Contains(fw.Word))
+                    foreach (var word in words)
+                    {
+                        resetEvent.WaitOne();
+                        if (fileContent.Contains(word.Word))
                         {
-                            paths.Add(file);
+                            filesToCensor.Add(file);
                             break;
                         }
+                    }
 
-                    Invoke(new Action(() => PrgBar.Value = ++processed));
+                    Invoke(new Action(() => PrgBar.Value = ++processedCount));
                 }
                 catch (Exception)
                 {
@@ -139,7 +156,13 @@ namespace ForbiddenWordsSearch
                 }
             }
 
-            int copied = 0, pathCount = paths.Count();
+            return filesToCensor;
+        }
+
+        private ICollection<CensoredFileInfo> CopyFilesToFolder(ICollection<string> filesToCensor, string folderPath)
+        {
+            int copiedCount = 0, pathCount = filesToCensor.Count();
+            var filesInfo = new List<CensoredFileInfo>();
 
             Invoke(new Action(() =>
             {
@@ -147,24 +170,22 @@ namespace ForbiddenWordsSearch
                 PrgBar.Value = 0;
             }));
 
-            string copiesPath = $"{path}/Forbidden Words/Copies";
-            Directory.CreateDirectory(copiesPath);
-
-            foreach (var filePath in paths)
+            foreach (var filePath in filesToCensor)
             {
-                ChangeState($"{states["Copy"]} ({copied}/{pathCount})");
+                ChangeState($"{states["Copy"]} ({copiedCount}/{pathCount})");
+                resetEvent.WaitOne();
 
                 string filename = Path.GetFileName(filePath);
-                string copyName = $"{copiesPath}/{filename}";
+                string copyName = $"{folderPath}/{filename}";
 
                 string name = Path.GetFileNameWithoutExtension(filename);
                 string ext = Path.GetExtension(filename);
 
                 int i = 0;
                 while (File.Exists(copyName))
-                    copyName = $"{copiesPath}/{name}{++i}{ext}";
+                    copyName = $"{folderPath}/{name}{++i}{ext}";
 
-                File.Copy(filePath, copyName);
+                File.Copy(filePath, copyName, true);
 
                 var info = new FileInfo(copyName);
                 var censorInfo = new CensoredFileInfo
@@ -176,29 +197,29 @@ namespace ForbiddenWordsSearch
                 };
                 filesInfo.Add(censorInfo);
 
-                Invoke(new Action(() => PrgBar.Value = ++copied));
+                Invoke(new Action(() => PrgBar.Value = ++copiedCount));
             }
 
+            return filesInfo;
+        }
 
-            var copies = Directory.EnumerateFiles(copiesPath).ToList();
-
-            int censored = 0, copyCount = copies.Count();
+        private void CensorFiles(ICollection<CensoredFileInfo> filesInfo, string path)
+        {
+            int censoredCount = 0, copyCount = filesInfo.Count();
 
             Invoke(new Action(() =>
             {
-                PrgBar.Maximum = pathCount;
+                PrgBar.Maximum = copyCount;
                 PrgBar.Value = 0;
             }));
 
-            string censorPath = $"{path}/Forbidden Words/Censored";
-            Directory.CreateDirectory(censorPath);
-
             foreach (var info in filesInfo)
             {
-                ChangeState($"{states["Censor"]} ({censored}/{copyCount})");
+                ChangeState($"{states["Censor"]} ({censoredCount}/{copyCount})");
+                resetEvent.WaitOne();
 
                 string filename = Path.GetFileName(info.CopyPath);
-                string censorName = $"{censorPath}/{filename}";
+                string censorName = $"{path}/{filename}";
 
                 string content;
                 using (var sr = new StreamReader(info.CopyPath, Encoding.Default))
@@ -208,8 +229,11 @@ namespace ForbiddenWordsSearch
 
                 foreach (var fw in words)
                 {
+                    resetEvent.WaitOne();
+
                     var matches = Regex.Matches(content, fw.Word);
                     var count = matches.Count;
+
                     if (count > 0)
                     {
                         info.CensorCount += count;
@@ -218,60 +242,46 @@ namespace ForbiddenWordsSearch
                     }
                 }
 
-                File.WriteAllText(censorName, content);
+                File.WriteAllText(censorName, content, Encoding.Default);
 
-                Invoke(new Action(() => PrgBar.Value = ++censored));
+                Invoke(new Action(() => PrgBar.Value = ++censoredCount));
             }
-
-            ChangeState(states["Report"]);
-
-            GenerateReport(filesInfo, files.Count);
-            
-            Invoke(new Action(() => this.Close()));
         }
 
-        private void GenerateReport(List<CensoredFileInfo> filesInfo, int processedCount)
+        private void GenerateReport(ICollection<CensoredFileInfo> filesInfo, int processedCount)
         {
+            ChangeState(states["Report"]);
+
             using var sw = new StreamWriter($"{path}/Forbidden Words/Report.txt", false, Encoding.Default);
-            sw.WriteLine("Forbidden Words Search Report");
-            sw.WriteLine();
+
+            sw.WriteLine("Forbidden Words Search Report\n");
             sw.WriteLine($"Total files processed: {processedCount}");
-            sw.WriteLine($"Files censored: {filesInfo.Count}");
-            sw.WriteLine();
+            sw.WriteLine($"Files censored: {filesInfo.Count}\n");
             sw.WriteLine("Top 10 Most Popular Forbidden Words:");
 
             var popWords = words.OrderByDescending(fw => fw.Popularity).ToArray();
             for (int i = 0; i < 10 && i < popWords.Length; i++)
                 sw.WriteLine($"{i + 1}. {popWords[i].Word} - {popWords[i].Popularity} times");
-            sw.WriteLine();
-            sw.WriteLine();
+            sw.WriteLine("\n");
 
             foreach (var info in filesInfo)
             {
+                resetEvent.WaitOne();
                 sw.WriteLine(info.Name);
                 sw.WriteLine(info.OriginalPath);
                 sw.WriteLine($"{info.Size} bytes");
-                sw.WriteLine($"{info.CensorCount} words censored");
-                sw.WriteLine();
+                sw.WriteLine($"{info.CensorCount} words censored\n");
             }
-
-            MessageBox.Show("The search is completed.\nThe report has been generated in the working folder.");
         }
 
         private void SearchForm_FormClosed(object sender, FormClosedEventArgs e)
         {
             if (thread.IsAlive)
             {
-                try
-                {
-                    thread.Resume();
-                }
-                catch (Exception) { }
-                finally
-                {
-                    thread.Abort();
-                }
+                resetEvent.Set();
+                thread.Abort();
             }
+            resetEvent.Dispose();
             parent.Show();
         }
 
@@ -279,8 +289,8 @@ namespace ForbiddenWordsSearch
         {
             if (thread.IsAlive)
             {
-                if (!paused)
-                    thread.Suspend();
+                resetEvent.Reset();
+                PrgBar.MarqueeAnimationSpeed = 0;
 
                 var result = MessageBox.Show("Are you sure to cancel the search?", "Warning", MessageBoxButtons.YesNo);
                 if (result == DialogResult.Yes)
@@ -292,25 +302,29 @@ namespace ForbiddenWordsSearch
                     this.Close();
                 }
                 else
-                    if (!paused)
-                        thread.Resume();
+                {
+                    resetEvent.Set();
+                    PrgBar.MarqueeAnimationSpeed = 2;
+                }
             }
         }
 
         private void BtnPause_Click(object sender, EventArgs e)
         {
             if (thread.IsAlive)
-                if (!paused)
+                if (!isThreadPaused)
                 {
-                    paused = true;
+                    isThreadPaused = true;
                     BtnPause.Text = "Resume";
-                    thread.Suspend();
+                    PrgBar.MarqueeAnimationSpeed = 0;
+                    resetEvent.Reset();
                 }
                 else
                 {
-                    paused = false;
+                    isThreadPaused = false;
                     BtnPause.Text = "Pause";
-                    thread.Resume();
+                    PrgBar.MarqueeAnimationSpeed = 2;
+                    resetEvent.Set();
                 }
         }
     }
