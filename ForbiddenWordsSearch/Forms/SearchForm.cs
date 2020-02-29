@@ -236,16 +236,23 @@ namespace ForbiddenWordsSearch
 
                 foreach (var fw in words)
                 {
-                    resetEvent.WaitOne();
-
-                    var matches = Regex.Matches(content, fw.Word);
-                    var count = matches.Count;
-
-                    if (count > 0)
+                    try
                     {
-                        info.CensorCount += count;
-                        fw.Popularity += count;
-                        content = Regex.Replace(content, fw.Word, "*******");
+                        resetEvent.WaitOne();
+
+                        var matches = Regex.Matches(content, fw.Word);
+                        var count = matches.Count;
+
+                        if (count > 0)
+                        {
+                            info.CensorCount += count;
+                            fw.Popularity += count;
+                            content = Regex.Replace(content, fw.Word, "*******");
+                        }
+                    }
+                    catch (Exception)
+                    {
+                        words.Remove(fw);
                     }
                 }
 
