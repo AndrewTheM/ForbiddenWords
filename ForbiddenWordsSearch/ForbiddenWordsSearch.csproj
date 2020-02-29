@@ -48,35 +48,35 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="CensoredFileInfo.cs" />
-    <Compile Include="ForbiddenWord.cs" />
-    <Compile Include="SearchForm.cs">
+    <Compile Include="Models\CensoredFileInfo.cs" />
+    <Compile Include="Models\ForbiddenWord.cs" />
+    <Compile Include="Forms\SearchForm.cs">
       <SubType>Form</SubType>
     </Compile>
-    <Compile Include="SearchForm.Designer.cs">
+    <Compile Include="Forms\SearchForm.Designer.cs">
       <DependentUpon>SearchForm.cs</DependentUpon>
     </Compile>
-    <Compile Include="SetupForm.cs">
+    <Compile Include="Forms\SetupForm.cs">
       <SubType>Form</SubType>
     </Compile>
-    <Compile Include="SetupForm.Designer.cs">
+    <Compile Include="Forms\SetupForm.Designer.cs">
       <DependentUpon>SetupForm.cs</DependentUpon>
     </Compile>
-    <Compile Include="WordsForm.cs">
+    <Compile Include="Forms\WordsForm.cs">
       <SubType>Form</SubType>
     </Compile>
-    <Compile Include="WordsForm.Designer.cs">
+    <Compile Include="Forms\WordsForm.Designer.cs">
       <DependentUpon>WordsForm.cs</DependentUpon>
     </Compile>
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <EmbeddedResource Include="SearchForm.resx">
+    <EmbeddedResource Include="Forms\SearchForm.resx">
       <DependentUpon>SearchForm.cs</DependentUpon>
     </EmbeddedResource>
-    <EmbeddedResource Include="SetupForm.resx">
+    <EmbeddedResource Include="Forms\SetupForm.resx">
       <DependentUpon>SetupForm.cs</DependentUpon>
     </EmbeddedResource>
-    <EmbeddedResource Include="WordsForm.resx">
+    <EmbeddedResource Include="Forms\WordsForm.resx">
       <DependentUpon>WordsForm.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="Properties\Resources.resx">

@@ -172,32 +172,39 @@ namespace ForbiddenWordsSearch
 
             foreach (var filePath in filesToCensor)
             {
-                ChangeState($"{states["Copy"]} ({copiedCount}/{pathCount})");
-                resetEvent.WaitOne();
-
-                string filename = Path.GetFileName(filePath);
-                string copyName = $"{folderPath}/{filename}";
-
-                string name = Path.GetFileNameWithoutExtension(filename);
-                string ext = Path.GetExtension(filename);
-
-                int i = 0;
-                while (File.Exists(copyName))
-                    copyName = $"{folderPath}/{name}{++i}{ext}";
-
-                File.Copy(filePath, copyName, true);
-
-                var info = new FileInfo(copyName);
-                var censorInfo = new CensoredFileInfo
+                try
                 {
-                    Name = info.Name,
-                    OriginalPath = filePath,
-                    CopyPath = copyName,
-                    Size = info.Length
-                };
-                filesInfo.Add(censorInfo);
+                    ChangeState($"{states["Copy"]} ({copiedCount}/{pathCount})");
+                    resetEvent.WaitOne();
 
-                Invoke(new Action(() => PrgBar.Value = ++copiedCount));
+                    string filename = Path.GetFileName(filePath);
+                    string copyName = $"{folderPath}/{filename}";
+
+                    string name = Path.GetFileNameWithoutExtension(filename);
+                    string ext = Path.GetExtension(filename);
+
+                    int i = 0;
+                    while (File.Exists(copyName))
+                        copyName = $"{folderPath}/{name}{++i}{ext}";
+
+                    File.Copy(filePath, copyName, true);
+
+                    var info = new FileInfo(copyName);
+                    var censorInfo = new CensoredFileInfo
+                    {
+                        Name = info.Name,
+                        OriginalPath = filePath,
+                        CopyPath = copyName,
+                        Size = info.Length
+                    };
+                    filesInfo.Add(censorInfo);
+
+                    Invoke(new Action(() => PrgBar.Value = ++copiedCount));
+                }
+                catch (Exception)
+                {
+                    Invoke(new Action(() => PrgBar.Value = --pathCount));
+                }
             }
 
             return filesInfo;
